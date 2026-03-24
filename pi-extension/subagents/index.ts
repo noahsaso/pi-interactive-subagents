@@ -1163,10 +1163,10 @@ export default function subagentsExtension(pi: ExtensionAPI) {
           contentLines.push(theme.fg("muted", keyHint("app.tools.expand", "to expand")));
         }
 
-        // Render via Box for background + padding
+        // Render via Box for background + padding, with blank line above for separation
         const box = new Box(1, 0, bgFn);
         box.addChild(new Text(contentLines.join("\n"), 0, 0));
-        return box.render(width);
+        return ["", ...box.render(width)];
       }
     };
   });
