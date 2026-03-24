@@ -389,9 +389,6 @@ async function launchSubagent(
     readdirSync(sessionDir).filter((f) => f.endsWith(".jsonl"))
   );
 
-  // Mark existing files as claimed so no watcher picks them up
-  for (const f of existingSessionFiles) globalClaimedFiles.add(f);
-
   // Use pre-created surface (parallel mode) or create a new one.
   // For new surfaces, pause briefly so the shell is ready before sending the command.
   const surfacePreCreated = !!options?.surface;
@@ -578,9 +575,9 @@ async function watchSubagent(
     if (trackedFile) {
       subSessionFile = { path: trackedFile };
     } else {
-      // Fallback: scan for new files (single-agent mode or file appeared late)
+      // Fallback: scan for new files not claimed by other agents
       const newFiles = readdirSync(sessionDir)
-        .filter((f) => f.endsWith(".jsonl") && !existingSessionFiles.has(f))
+        .filter((f) => f.endsWith(".jsonl") && !existingSessionFiles.has(f) && !globalClaimedFiles.has(f))
         .map((f) => ({ name: f, path: join(sessionDir, f), mtime: statSync(join(sessionDir, f)).mtimeMs }))
         .sort((a, b) => b.mtime - a.mtime);
       subSessionFile = newFiles[0];
