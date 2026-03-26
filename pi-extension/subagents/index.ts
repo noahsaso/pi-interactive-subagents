@@ -247,16 +247,19 @@ const RST = "\x1b[0m";
 /**
  * Build a bordered content line: │left          right│
  * Left content is truncated if needed, right is preserved, padded to fill width.
+ * When width is very narrow, right is also truncated to fit.
  */
 function borderLine(left: string, right: string, width: number): string {
   // width = total visible chars for the whole line including │ and │
   const contentWidth = Math.max(0, width - 2); // space inside the two │ chars
-  const rightVis = visibleWidth(right);
+  // Truncate right side first if it alone exceeds content width
+  const truncRight = visibleWidth(right) > contentWidth ? truncateToWidth(right, contentWidth) : right;
+  const rightVis = visibleWidth(truncRight);
   const maxLeft = Math.max(0, contentWidth - rightVis);
   const truncLeft = truncateToWidth(left, maxLeft);
   const leftVis = visibleWidth(truncLeft);
   const pad = Math.max(0, contentWidth - leftVis - rightVis);
-  return `${ACCENT}│${RST}${truncLeft}${" ".repeat(pad)}${right}${ACCENT}│${RST}`;
+  return `${ACCENT}│${RST}${truncLeft}${" ".repeat(pad)}${truncRight}${ACCENT}│${RST}`;
 }
 
 /**
