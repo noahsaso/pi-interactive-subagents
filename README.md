@@ -119,16 +119,11 @@ Completion messages render with a colored background and are expandable with `Ct
 // Named agent with defaults from agent definition
 subagent({ name: "Scout", agent: "scout", task: "Analyze the codebase..." });
 
-// Fork — sub-agent gets full conversation context
+// Force a full-context fork for this spawn
 subagent({ name: "Iterate", fork: true, task: "Fix the bug where..." });
 
-// Override agent defaults
-subagent({
-  name: "Worker",
-  agent: "worker",
-  model: "anthropic/claude-haiku-4-5",
-  task: "Quick fix...",
-});
+// Agent defaults can choose a different session-mode via frontmatter
+subagent({ name: "Planner", agent: "planner", task: "Work through the design with me" });
 
 // Custom working directory
 subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer", task: "..." });
@@ -141,7 +136,7 @@ subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer"
 | `name`         | string  | required | Display name (shown in widget and pane title)                           |
 | `task`         | string  | required | Task prompt for the sub-agent                                           |
 | `agent`        | string  | —        | Load defaults from agent definition                                     |
-| `fork`         | boolean | `false`  | Copy current session for full context                                   |
+| `fork`         | boolean | `false`  | Force the full-context fork mode for this spawn, overriding any agent `session-mode` frontmatter |
 | `model`        | string  | —        | Override agent's default model                                          |
 | `systemPrompt` | string  | —        | Append to system prompt                                                 |
 | `skills`       | string  | —        | Comma-separated skill names                                             |
@@ -211,7 +206,7 @@ For quick, focused work without polluting the main session's context.
 /iterate Fix the off-by-one error in the pagination logic
 ```
 
-This forks the current session into a subagent with full conversation context. Make the fix, verify it, and exit to return. The main session gets a summary of what was done.
+This always forks the current session into a subagent with full conversation context. It does not inherit an agent default `session-mode`. Make the fix, verify it, and exit to return. The main session gets a summary of what was done.
 
 ---
 
@@ -226,6 +221,7 @@ description: Does something specific
 model: anthropic/claude-sonnet-4-6
 thinking: minimal
 tools: read, bash, edit, write
+session-mode: lineage-only
 spawning: false
 ---
 
@@ -244,12 +240,35 @@ You are a specialized agent that does X...
 | `thinking`    | string  | Thinking level: `minimal`, `medium`, `high`                                                                                                                                                                                                                                 |
 | `tools`       | string  | Comma-separated **native pi tools only**: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`                                                                                                                                                                             |
 | `skills`      | string  | Comma-separated skill names to auto-load                                                                                                                                                                                                                                    |
+| `session-mode` | string | Default child-session mode: `standalone`, `lineage-only`, or `fork` |
 | `spawning`    | boolean | Set `false` to deny all subagent-spawning tools                                                                                                                                                                                                                             |
 | `deny-tools`  | string  | Comma-separated extension tool names to deny                                                                                                                                                                                                                                |
 | `auto-exit`   | boolean | Auto-shutdown when the agent finishes its turn — no `subagent_done` call needed. If the user sends any input, auto-exit is permanently disabled and the user takes over the session. Recommended for autonomous agents (scout, worker); not for interactive ones (planner). |
 | `cwd`         | string  | Default working directory (absolute or relative to project root)                                                                                                                                                                                                            |
+| `disable-model-invocation` | boolean | Hide this agent from discovery surfaces like `subagents_list`. The agent still remains directly invokable by explicit name via `subagent({ agent: "name", ... })`. |
 
 ---
+
+Discovery still resolves precedence before visibility filtering. If a project-local hidden agent has the same name as a visible global or bundled agent, the hidden project agent wins and the lower-precedence agent does not appear in `subagents_list`.
+
+### `session-mode`
+
+Choose how a subagent session starts:
+
+- `standalone` — default fresh session with no lineage link to the caller
+- `lineage-only` — fresh blank child session with `parentSession` linkage, but no copied turns from the caller
+- `fork` — linked child session seeded with the caller's prior conversation context
+
+`lineage-only` is useful when you want session discovery and fork lineage UX to show the relationship later, but you do **not** want the child to inherit the parent's turns.
+
+`fork: true` on the tool call always forces the `fork` mode for that specific spawn. `/iterate` uses this explicit override on purpose.
+
+```yaml
+---
+name: planner
+session-mode: lineage-only
+---
+```
 
 ### `auto-exit`
 
