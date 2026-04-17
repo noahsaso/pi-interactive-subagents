@@ -15,31 +15,6 @@ A planning workflow that separates WHAT (spec) from HOW (plan). First a spec age
 
 ---
 
-## Tab Titles
-
-Use `set_tab_title` to keep the user informed of progress in the multiplexer UI. Update the title at every phase transition.
-
-| Phase         | Title example                                                  |
-| ------------- | -------------------------------------------------------------- |
-| Assessment    | `🔍 Assessing: <short task>`                                   |
-| Scouting      | `🔍 Scouting: <short task>`                                    |
-| Spec          | `📝 Spec: <short task>`                                        |
-| Planning      | `💬 Planning: <short task>`                                    |
-| Review plan   | `📋 Review: <short task>`                                      |
-| Executing     | `🔨 Executing: 1/3 — <short task>` (update counter per worker) |
-| Reviewing     | `🔎 Reviewing: <short task>`                                   |
-| Done          | `✅ Done: <short task>`                                        |
-
-Name subagents with context too:
-
-- Scout: `"🔍 Scout"` (default is fine)
-- Spec: `"📝 Spec"`
-- Planner: `"💬 Planner"`
-- Workers: `"🔨 Worker 1/3"`, `"🔨 Worker 2/3"`, etc.
-- Reviewer: `"🔎 Reviewer"`
-
----
-
 ## The Flow
 
 ```

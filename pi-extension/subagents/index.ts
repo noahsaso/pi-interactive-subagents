@@ -190,16 +190,7 @@ function formatElapsed(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
-function muxUnavailableResult(kind: "subagents" | "tab-title" = "subagents") {
-  if (kind === "tab-title") {
-    return {
-      content: [
-        { type: "text" as const, text: `Terminal multiplexer not available. ${muxSetupHint()}` },
-      ],
-      details: { error: "mux not available" },
-    };
-  }
-
+function muxUnavailableResult() {
   return {
     content: [
       {
@@ -544,12 +535,6 @@ async function launchSubagent(
     ? "Your FINAL assistant message should summarize what you accomplished."
     : "Your FINAL assistant message (before calling subagent_done or before the user exits) should summarize what you accomplished.";
   const denySet = resolveDenyTools(agentDefs);
-  const agentType = params.agent ?? params.name;
-  const tabTitleInstruction = denySet.has("set_tab_title")
-    ? ""
-    : `As your FIRST action, set the tab title using set_tab_title. ` +
-      `The title MUST start with [${agentType}] followed by a short description of your current task. ` +
-      `Example: "[${agentType}] Analyzing auth module". Keep it concise.`;
   // Determine where the agent identity goes: system prompt or user message
   const identity = agentDefs?.body ?? params.systemPrompt ?? null;
   const systemPromptMode = agentDefs?.systemPromptMode;
@@ -557,7 +542,7 @@ async function launchSubagent(
   const roleBlock = identity && !identityInSystemPrompt ? `\n\n${identity}` : "";
   const fullTask = params.fork
     ? params.task
-    : `${roleBlock}\n\n${modeHint}\n\n${tabTitleInstruction}\n\n${params.task}\n\n${summaryInstruction}`;
+    : `${roleBlock}\n\n${modeHint}\n\n${params.task}\n\n${summaryInstruction}`;
 
   // Build pi command
   const parts: string[] = ["pi"];
@@ -941,7 +926,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
 
         // Validate prerequisites
         if (!isMuxAvailable()) {
-          return muxUnavailableResult("subagents");
+          return muxUnavailableResult();
         }
 
         if (!ctx.sessionManager.getSessionFile()) {
@@ -1190,43 +1175,6 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       },
     });
 
-  // ── set_tab_title tool ──
-  if (shouldRegister("set_tab_title"))
-    pi.registerTool({
-      name: "set_tab_title",
-      label: "Set Tab Title",
-      description:
-        "Update the current tab/window and workspace/session title. Use to show progress during multi-phase workflows " +
-        "(e.g. planning, executing todos, reviewing). Keep titles short and informative.",
-      promptSnippet:
-        "Update the current tab/window and workspace/session title. Use to show progress during multi-phase workflows " +
-        "(e.g. planning, executing todos, reviewing). Keep titles short and informative.",
-      parameters: Type.Object({
-        title: Type.String({
-          description: "New tab title (also applied to workspace/session when supported)",
-        }),
-      }),
-
-      async execute(_toolCallId, params) {
-        if (!isMuxAvailable()) {
-          return muxUnavailableResult("tab-title");
-        }
-        try {
-          renameCurrentTab(params.title);
-          renameWorkspace(params.title);
-          return {
-            content: [{ type: "text", text: `Title set to: ${params.title}` }],
-            details: { title: params.title },
-          };
-        } catch (err: any) {
-          return {
-            content: [{ type: "text", text: `Failed to set title: ${err?.message}` }],
-            details: { error: err?.message },
-          };
-        }
-      },
-    });
-
   // ── subagent_resume tool ──
   if (shouldRegister("subagent_resume"))
     pi.registerTool({
@@ -1286,7 +1234,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         const startTime = Date.now();
 
         if (!isMuxAvailable()) {
-          return muxUnavailableResult("subagents");
+          return muxUnavailableResult();
         }
 
         if (!existsSync(params.sessionPath)) {
