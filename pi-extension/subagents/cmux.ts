@@ -158,15 +158,39 @@ function waitForFile(path: string, timeoutMs = 5000): string {
   throw new Error(`Timed out waiting for zellij pane id file: ${path}`);
 }
 
+/**
+ * Pane-scoped zellij actions that must target a specific pane via --pane-id
+ * (the ZELLIJ_PANE_ID env var is ignored by most of these).
+ * See https://github.com/HazAT/pi-interactive-subagents/issues/19
+ */
+const ZELLIJ_PANE_SCOPED_ACTIONS = new Set([
+  "close-pane",
+  "dump-screen",
+  "rename-pane",
+  "move-pane",
+  "write",
+  "write-chars",
+  "send-keys",
+]);
+
+function zellijActionArgs(args: string[], surface?: string): string[] {
+  if (!surface) return ["action", ...args];
+  const action = args[0];
+  if (!ZELLIJ_PANE_SCOPED_ACTIONS.has(action)) return ["action", ...args];
+  // Don't double-add if caller already specified it.
+  if (args.includes("--pane-id") || args.includes("-p")) return ["action", ...args];
+  return ["action", action, "--pane-id", zellijPaneId(surface), ...args.slice(1)];
+}
+
 function zellijActionSync(args: string[], surface?: string): string {
-  return execFileSync("zellij", ["action", ...args], {
+  return execFileSync("zellij", zellijActionArgs(args, surface), {
     encoding: "utf8",
     env: zellijEnv(surface),
   });
 }
 
 async function zellijActionAsync(args: string[], surface?: string): Promise<string> {
-  const { stdout } = await execFileAsync("zellij", ["action", ...args], {
+  const { stdout } = await execFileAsync("zellij", zellijActionArgs(args, surface), {
     encoding: "utf8",
     env: zellijEnv(surface),
   });
